@@ -628,11 +628,18 @@ const jszipScript = document.createElement('script');
 jszipScript.src = "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
 document.head.appendChild(jszipScript);
 
-let currentCount = 0; // fallback
+// Counter state — split into server baseline + session-only increment
+// to prevent phantom increments from Supabase triggers on every PATCH.
+let serverBaseline = 0;
+let sessionIncrement = 0;
 
 // Supabase Config
 const supabaseUrl = 'https://hvxzjpxjnussldgdrkma.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2eHpqcHhqbnVzc2xkZ2Rya21hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MjMxMzgsImV4cCI6MjA5NjM5OTEzOH0._pw1IyV-pg_jEcV5Hw0pcfShb-L21HZq1xDZ2pXpPXs';
+
+function updateCounterDisplay() {
+    document.getElementById('countNumber').innerText = (serverBaseline + sessionIncrement).toLocaleString();
+}
 
 async function loadGlobalCount() {
     try {
@@ -641,21 +648,21 @@ async function loadGlobalCount() {
         });
         const data = await res.json();
         if (data && data[0]) {
-            currentCount = data[0].total_conversions;
-            document.getElementById('countNumber').innerText = currentCount.toLocaleString();
+            serverBaseline = data[0].total_conversions;
         }
     } catch(e) {
-        console.log("Using local count");
-        document.getElementById('countNumber').innerText = currentCount.toLocaleString();
+        console.log("Could not load server count, using cached value");
     }
+    updateCounterDisplay();
 }
 
-// Increment counter (local + try to sync)
+// Increment counter — only touches the session counter.
+// The Supabase sync is best-effort and uses the full total
+// so the next visitor sees an up-to-date number.
 async function incrementCounter(count = 1) {
-    currentCount += count;
-    document.getElementById('countNumber').innerText = currentCount.toLocaleString();
+    sessionIncrement += count;
+    updateCounterDisplay();
 
-    // Optional: Try to update Supabase (may not work if RLS is strict)
     try {
         await fetch(`${supabaseUrl}/rest/v1/app_stats?id=eq.1`, {
             method: 'PATCH',
@@ -664,7 +671,7 @@ async function incrementCounter(count = 1) {
                 'Content-Type': 'application/json',
                 'Prefer': 'return=minimal'
             },
-            body: JSON.stringify({ total_conversions: currentCount })
+            body: JSON.stringify({ total_conversions: serverBaseline + sessionIncrement })
         });
     } catch(e) {}
 }
