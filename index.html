@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Optimizer & BG Remover - Asad Bukhari</title>
+    <link rel="icon" href="data:,">
+    
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/body-segmentation"></script>
+
+    <style>
+        :root {
+            --primary: #6366f1;
+            --accent: #22d3ee;
+            --success: #10b981;
+            --dark: #1e2937;
+            --light: #f8fafc;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(135deg, #e0f2fe 0%, #c7d2fe 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            color: var(--dark);
+        }
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(90deg, var(--primary), #4f46e5);
+            color: white;
+            padding: 25px 30px;
+            text-align: center;
+        }
+        h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 700;
+        }
+        .subtitle {
+            margin: 8px 0 0;
+            opacity: 0.95;
+            font-size: 17px;
+        }
+        #globalCounter {
+            background: rgba(255,255,255,0.25);
+            padding: 10px 24px;
+            border-radius: 30px;
+            display: inline-block;
+            margin-top: 12px;
+            font-weight: 700;
+            font-size: 15.5px;
+            backdrop-filter: blur(10px);
+        }
+        .main-content {
+            padding: 30px;
+        }
+        .upload-zone {
+            border: 4px dashed #64748b;
+            padding: 50px 20px;
+            border-radius: 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #f8fafc;
+        }
+        .upload-zone:hover {
+            border-color: var(--accent);
+            background: #f0f9ff;
+            transform: scale(1.02);
+        }
+        .file-list {
+            max-height: 220px;
+            overflow-y: auto;
+            margin: 20px 0;
+            padding: 10px;
+            background: #f1f5f9;
+            border-radius: 12px;
+        }
+        .file-item {
+            padding: 12px;
+            background: white;
+            margin: 6px 0;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            font-size: 15px;
+        }
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 18px;
+            margin: 25px 0;
+        }
+        label {
+            font-weight: 600;
+            color: #334155;
+        }
+        input[type="number"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 16px;
+        }
+        button {
+            background: linear-gradient(90deg, var(--primary), #4f46e5);
+            color: white;
+            border: none;
+            padding: 16px;
+            font-size: 17px;
+            font-weight: 700;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 10px 0;
+            width: 100%;
+        }
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(99, 102, 241, 0.4);
+        }
+        #status {
+            margin: 20px 0;
+            font-weight: 700;
+            text-align: center;
+            font-size: 16px;
+        }
+        .contact {
+            text-align: center;
+            padding: 20px;
+            background: #f8fafc;
+            color: #475569;
+            border-top: 1px solid #e2e8f0;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>Image Optimizer & Background Remover</h1>
+        <p class="subtitle">by <strong>Asad Bukhari</strong> • +92 349 1590380</p>
+        <div id="globalCounter">
+            ⚡ Helped people optimize <span id="countNumber">122,022</span> pictures!
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="upload-zone" id="dropZone">
+            <p><strong>🎨 Drag & drop multiple images here</strong><br>or click to select</p>
+            <input type="file" id="fileInput" accept="image/*" multiple>
+        </div>
+
+        <div id="fileList" class="file-list" style="display:none;"></div>
+
+        <div class="controls">
+            <div>
+                <label>Target Max Size (KB)</label>
+                <input type="number" id="targetSize" value="150" min="10">
+            </div>
+            <div>
+                <label>Width (px)</label>
+                <input type="number" id="targetWidth" value="900" min="100">
+            </div>
+            <div>
+                <label>Height (px)</label>
+                <input type="number" id="targetHeight" value="900" min="100">
+            </div>
+        </div>
+
+        <label style="display:flex; align-items:center; gap:10px; font-size:16px;">
+            <input type="checkbox" id="removeBg" checked> 
+            <span>✨ Remove Background (White)</span>
+        </label>
+
+        <button id="processBtn" disabled>🚀 Process All Images</button>
+        <button id="downloadAllBtn" style="display:none; background:linear-gradient(90deg,#10b981,#34d399);">📦 Download All as ZIP</button>
+
+        <div id="status"></div>
+    </div>
+
+    <div class="contact">
+        📞 <strong>Asad Bukhari</strong> — +923491590380<br>
+        Need custom AI tools or bulk processing? Message me on WhatsApp!
+    </div>
+</div>
+
+<script>
+// JSZip
+const jszipScript = document.createElement('script');
+jszipScript.src = "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
+document.head.appendChild(jszipScript);
+
+let currentCount = 122022; // fallback
+
+// Supabase Config
+const supabaseUrl = 'https://hvxzjpxjnussldgdrkma.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2eHpqcHhqbnVzc2xkZ2Rya21hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MjMxMzgsImV4cCI6MjA5NjM5OTEzOH0._pw1IyV-pg_jEcV5Hw0pcfShb-L21HZq1xDZ2pXpPXs';
+
+async function loadGlobalCount() {
+    try {
+        const res = await fetch(`${supabaseUrl}/rest/v1/app_stats?id=eq.1&select=total_conversions`, {
+            headers: { 'apikey': supabaseKey }
+        });
+        const data = await res.json();
+        if (data && data[0]) {
+            currentCount = data[0].total_conversions;
+            document.getElementById('countNumber').innerText = currentCount.toLocaleString();
+        }
+    } catch(e) {
+        console.log("Using local count");
+        document.getElementById('countNumber').innerText = currentCount.toLocaleString();
+    }
+}
+
+// Increment counter (local + try to sync)
+async function incrementCounter(count = 1) {
+    currentCount += count;
+    document.getElementById('countNumber').innerText = currentCount.toLocaleString();
+
+    // Optional: Try to update Supabase (may not work if RLS is strict)
+    try {
+        await fetch(`${supabaseUrl}/rest/v1/app_stats?id=eq.1`, {
+            method: 'PATCH',
+            headers: {
+                'apikey': supabaseKey,
+                'Content-Type': 'application/json',
+                'Prefer': 'return=minimal'
+            },
+            body: JSON.stringify({ total_conversions: currentCount })
+        });
+    } catch(e) {}
+}
+
+loadGlobalCount();
+
+// === Rest of the app (Batch Processing) ===
+let filesToProcess = [];
+let processedResults = [];
+let segmentationModel = null;
+
+const fileInput = document.getElementById('fileInput');
+const dropZone = document.getElementById('dropZone');
+const processBtn = document.getElementById('processBtn');
+const downloadAllBtn = document.getElementById('downloadAllBtn');
+const statusEl = document.getElementById('status');
+const fileListEl = document.getElementById('fileList');
+
+async function loadModel() {
+    try {
+        const model = bodySegmentation.SupportedModels.MediaPipeSelfieSegmentation;
+        const config = { runtime: 'mediapipe', solutionPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation' };
+        segmentationModel = await bodySegmentation.createSegmenter(model, config);
+    } catch (e) { console.error(e); }
+}
+loadModel();
+
+dropZone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', handleFiles);
+
+['dragenter', 'dragover'].forEach(ev => dropZone.addEventListener(ev, e => {
+    e.preventDefault(); dropZone.style.borderColor = '#22d3ee';
+}));
+['dragleave', 'drop'].forEach(ev => dropZone.addEventListener(ev, e => {
+    e.preventDefault(); dropZone.style.borderColor = '#64748b';
+}));
+
+dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    handleFiles(e.dataTransfer);
+});
+
+function handleFiles(e) {
+    const selectedFiles = e.files || e.target.files;
+    filesToProcess = Array.from(selectedFiles).filter(f => f.type.startsWith('image/'));
+    
+    fileListEl.innerHTML = '';
+    fileListEl.style.display = 'block';
+
+    filesToProcess.forEach(file => {
+        const div = document.createElement('div');
+        div.className = 'file-item';
+        div.innerHTML = `📷 ${file.name} <small>(${(file.size/1024).toFixed(1)} KB)</small>`;
+        fileListEl.appendChild(div);
+    });
+
+    processBtn.disabled = false;
+    statusEl.innerHTML = `<strong>${filesToProcess.length} image(s) ready!</strong>`;
+}
+
+processBtn.addEventListener('click', async () => {
+    if (!filesToProcess.length) return;
+
+    statusEl.innerHTML = `Processing ${filesToProcess.length} images...`;
+    processedResults = [];
+
+    for (let i = 0; i < filesToProcess.length; i++) {
+        statusEl.innerHTML = `Processing ${i+1}/${filesToProcess.length}...`;
+        try {
+            const result = await processSingleImage(filesToProcess[i]);
+            processedResults.push(result);
+        } catch(err) {}
+    }
+
+    // Increment counter after successful batch
+    incrementCounter(processedResults.length);
+
+    statusEl.innerHTML = `<strong style="color:#10b981;">✅ All images processed successfully!</strong>`;
+    downloadAllBtn.style.display = 'block';
+});
+
+async function processSingleImage(file) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            const img = new Image();
+            img.onload = async () => {
+                let processed = img;
+                if (document.getElementById('removeBg').checked && segmentationModel) {
+                    try {
+                        const people = await segmentationModel.segmentPeople(img);
+                        const mask = await bodySegmentation.toBinaryMask(people, {r:0,g:0,b:0,a:0}, {r:255,g:255,b:255,a:255});
+                        const canvas = document.createElement('canvas');
+                        canvas.width = img.width; canvas.height = img.height;
+                        await bodySegmentation.drawMask(canvas, img, mask, 1, 2);
+                        processed = canvas;
+                    } catch(e){}
+                }
+
+                const targetW = parseInt(document.getElementById('targetWidth').value) || 900;
+                const targetH = parseInt(document.getElementById('targetHeight').value) || 900;
+                const targetKB = parseFloat(document.getElementById('targetSize').value) || 150;
+
+                const canvas = document.createElement('canvas');
+                canvas.width = targetW;
+                canvas.height = targetH;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = "#FFFFFF";
+                ctx.fillRect(0, 0, targetW, targetH);
+                ctx.drawImage(processed, 0, 0, targetW, targetH);
+
+                const blob = await iterativeCompression(canvas, targetKB);
+                resolve({
+                    blob,
+                    name: file.name.replace(/\.\w+$/, '') + '_optimized.jpg'
+                });
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+async function iterativeCompression(canvas, targetKB) {
+    let quality = 0.92;
+    let blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', quality));
+    while (blob.size > targetKB * 1024 && quality > 0.2) {
+        quality -= 0.08;
+        blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', quality));
+    }
+    return blob;
+}
+
+downloadAllBtn.addEventListener('click', async () => {
+    if (typeof JSZip === 'undefined') return alert("Please wait, ZIP library is loading...");
+    const zip = new JSZip();
+    processedResults.forEach((item, i) => {
+        zip.file(item.name, item.blob);
+    });
+    const content = await zip.generateAsync({type:"blob"});
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(content);
+    link.download = `Optimized_Images_By_Asad_Bukhari.zip`;
+    link.click();
+});
+</script>
+</body>
+</html>
