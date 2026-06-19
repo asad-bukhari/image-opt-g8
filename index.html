@@ -5,193 +5,621 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Image Optimizer & BG Remover - Asad Bukhari</title>
     <link rel="icon" href="data:,">
-    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/body-segmentation"></script>
 
     <style>
+        /* ===== Design Tokens ===== */
         :root {
-            --primary: #6366f1;
-            --accent: #22d3ee;
-            --success: #10b981;
-            --dark: #1e2937;
-            --light: #f8fafc;
+            --bg: #F0F4F8;
+            --surface: #FFFFFF;
+            --primary: #0EA5E9;
+            --primary-dark: #0284C7;
+            --primary-light: #E0F2FE;
+            --amber: #F59E0B;
+            --amber-light: #FEF3C7;
+            --success: #10B981;
+            --text-primary: #0F172A;
+            --text-secondary: #475569;
+            --text-muted: #94A3B8;
+            --border: #E2E8F0;
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+            --shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
+            --radius: 10px;
         }
+
+        /* ===== Reset & Base ===== */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background: linear-gradient(135deg, #e0f2fe 0%, #c7d2fe 100%);
-            margin: 0;
-            padding: 20px;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 24px 16px;
             min-height: 100vh;
-            color: var(--dark);
+            color: var(--text-primary);
+            -webkit-font-smoothing: antialiased;
         }
-        .container {
-            max-width: 960px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
-            overflow: hidden;
+
+        .app-container {
+            width: 100%;
+            max-width: 720px;
         }
+
+        /* ===== Shared Card ===== */
+        .card {
+            background: var(--surface);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-sm);
+            padding: 20px;
+            margin-bottom: 14px;
+        }
+
+        /* ===== Header ===== */
         .header {
-            background: linear-gradient(90deg, var(--primary), #4f46e5);
-            color: white;
-            padding: 25px 30px;
-            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
         }
-        h1 {
-            margin: 0;
-            font-size: 28px;
-            font-weight: 700;
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
-        .subtitle {
-            margin: 8px 0 0;
-            opacity: 0.95;
-            font-size: 17px;
+        .header-icon {
+            width: 36px;
+            height: 36px;
+            background: var(--primary-light);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
         }
-        #globalCounter {
-            background: rgba(255,255,255,0.25);
-            padding: 10px 24px;
-            border-radius: 30px;
-            display: inline-block;
-            margin-top: 12px;
-            font-weight: 700;
-            font-size: 15.5px;
-            backdrop-filter: blur(10px);
+        .header-icon svg {
+            width: 20px;
+            height: 20px;
+            color: var(--primary);
         }
-        .main-content {
-            padding: 30px;
+        .header-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            line-height: 1.3;
         }
+        .header-subtitle {
+            font-size: 13px;
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+        .header-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--amber-light);
+            color: #92400E;
+            font-size: 13px;
+            font-weight: 600;
+            padding: 8px 14px;
+            border-radius: 20px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .header-badge svg {
+            width: 14px;
+            height: 14px;
+            color: var(--amber);
+            flex-shrink: 0;
+        }
+        #countNumber { font-weight: 700; }
+
+        /* ===== Upload Zone ===== */
         .upload-zone {
-            border: 4px dashed #64748b;
-            padding: 50px 20px;
-            border-radius: 16px;
-            text-align: center;
+            border: 2px dashed #CBD5E1;
+            border-radius: var(--radius);
+            padding: 48px 24px;
             cursor: pointer;
-            transition: all 0.3s;
-            background: #f8fafc;
+            transition: border-color 0.25s, background 0.25s;
+            text-align: center;
+            background: var(--surface);
         }
         .upload-zone:hover {
-            border-color: var(--accent);
-            background: #f0f9ff;
-            transform: scale(1.02);
+            border-color: var(--primary);
+            background: #F0F9FF;
         }
-        .file-list {
-            max-height: 220px;
-            overflow-y: auto;
-            margin: 20px 0;
-            padding: 10px;
-            background: #f1f5f9;
-            border-radius: 12px;
+        .upload-icon-wrap {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: var(--amber-light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
         }
-        .file-item {
-            padding: 12px;
-            background: white;
-            margin: 6px 0;
-            border-radius: 10px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        .upload-icon-wrap svg {
+            width: 24px;
+            height: 24px;
+            color: var(--amber);
+        }
+        .upload-zone p {
             font-size: 15px;
+            color: var(--text-secondary);
+            font-weight: 500;
         }
-        .controls {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 18px;
-            margin: 25px 0;
+        .upload-zone small {
+            display: block;
+            margin-top: 6px;
+            font-size: 13px;
+            color: var(--text-muted);
+            font-weight: 400;
         }
-        label {
+        .upload-zone input[type="file"] { display: none; }
+
+        /* ===== File Section ===== */
+        #fileSection { display: none; }
+        .file-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+        }
+        .file-section-header h3 {
+            font-size: 15px;
             font-weight: 600;
-            color: #334155;
+            color: var(--text-primary);
         }
-        input[type="number"] {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #e2e8f0;
-            border-radius: 10px;
-            font-size: 16px;
-        }
-        button {
-            background: linear-gradient(90deg, var(--primary), #4f46e5);
-            color: white;
-            border: none;
-            padding: 16px;
-            font-size: 17px;
-            font-weight: 700;
+        .file-count-badge {
+            background: var(--amber-light);
+            color: #92400E;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 4px 10px;
             border-radius: 12px;
-            cursor: pointer;
-            transition: all 0.3s;
-            margin: 10px 0;
+        }
+
+        /* ===== File Grid ===== */
+        .file-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 12px;
+            max-height: 360px;
+            overflow-y: auto;
+        }
+        .file-grid::-webkit-scrollbar { width: 6px; }
+        .file-grid::-webkit-scrollbar-track { background: transparent; }
+        .file-grid::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+        /* ===== File Card ===== */
+        .file-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            animation: fadeInUp 0.35s ease-out both;
+            transition: box-shadow 0.3s, border-color 0.3s;
+        }
+        .file-card:nth-child(1) { animation-delay: 0.02s; }
+        .file-card:nth-child(2) { animation-delay: 0.06s; }
+        .file-card:nth-child(3) { animation-delay: 0.10s; }
+        .file-card:nth-child(4) { animation-delay: 0.14s; }
+        .file-card:nth-child(5) { animation-delay: 0.18s; }
+        .file-card:nth-child(6) { animation-delay: 0.22s; }
+        .file-card:nth-child(7) { animation-delay: 0.26s; }
+        .file-card:nth-child(8) { animation-delay: 0.30s; }
+        .file-card:nth-child(n+9) { animation-delay: 0.34s; }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .file-thumb {
             width: 100%;
+            aspect-ratio: 1;
+            object-fit: cover;
+            display: block;
+            background: var(--bg);
         }
-        button:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 10px 20px rgba(99, 102, 241, 0.4);
+        .file-info {
+            padding: 8px 10px 10px;
         }
+        .file-name {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 1.3;
+        }
+        .file-size {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 400;
+            margin-top: 2px;
+        }
+        .file-status-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 6px;
+            padding-top: 6px;
+            border-top: 1px solid var(--border);
+        }
+        .file-status {
+            font-size: 11px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .file-status svg {
+            width: 12px;
+            height: 12px;
+            flex-shrink: 0;
+        }
+
+        /* Status states */
+        .file-status.pending {
+            color: var(--text-muted);
+        }
+        .file-status.pending svg {
+            color: var(--text-muted);
+        }
+
+        .file-status.processing {
+            color: var(--primary);
+        }
+        .file-status.processing svg {
+            color: var(--primary);
+            animation: spin 0.8s linear infinite;
+        }
+
+        .file-status.done {
+            color: var(--success);
+        }
+        .file-status.done svg {
+            color: var(--success);
+        }
+
+        .file-status.failed {
+            color: #EF4444;
+        }
+        .file-status.failed svg {
+            color: #EF4444;
+        }
+
+        /* Card state visuals */
+        .file-card.processing {
+            border-color: var(--primary);
+            animation: pulse-border 1.5s ease-in-out infinite;
+        }
+        .file-card.done {
+            border-color: var(--success);
+            box-shadow: 0 0 0 1px var(--success), 0 0 16px rgba(16, 185, 129, 0.2);
+        }
+        .file-card.failed {
+            border-color: #EF4444;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        @keyframes pulse-border {
+            0%, 100% { border-color: var(--primary); box-shadow: 0 0 0 1px rgba(14, 165, 233, 0.15); }
+            50%      { border-color: var(--primary-dark); box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.3); }
+        }
+
+        /* ===== Controls Grid ===== */
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+        }
+        .control-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+        .input-wrap {
+            position: relative;
+        }
+        .input-wrap input[type="number"] {
+            width: 100%;
+            padding: 10px 12px;
+            font-size: 14px;
+            font-weight: 500;
+            font-family: 'Inter', sans-serif;
+            border: 1.5px solid var(--border);
+            border-radius: 8px;
+            background: var(--surface);
+            color: var(--text-primary);
+            outline: none;
+            transition: border-color 0.2s;
+            -moz-appearance: textfield;
+        }
+        .input-wrap input[type="number"]::-webkit-inner-spin-button,
+        .input-wrap input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        .input-wrap input[type="number"]:focus {
+            border-color: var(--primary);
+        }
+        .input-suffix {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-muted);
+            pointer-events: none;
+        }
+
+        /* ===== Toggle ===== */
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+        }
+        .toggle-label {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+        .toggle {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            user-select: none;
+        }
+        .toggle input {
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .toggle-track {
+            width: 44px;
+            height: 24px;
+            background: #CBD5E1;
+            border-radius: 12px;
+            position: relative;
+            transition: background 0.25s;
+            flex-shrink: 0;
+        }
+        .toggle-track::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 18px;
+            height: 18px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.25s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+        }
+        .toggle input:checked + .toggle-track {
+            background: var(--primary);
+        }
+        .toggle input:checked + .toggle-track::after {
+            transform: translateX(20px);
+        }
+        .toggle-text {
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        /* ===== Buttons ===== */
+        .actions {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .btn {
+            width: 100%;
+            padding: 12px 24px;
+            font-size: 15px;
+            font-weight: 600;
+            font-family: 'Inter', sans-serif;
+            border: none;
+            border-radius: var(--radius);
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+        .btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+        }
+        .btn-primary svg { color: white; }
+        .btn-success {
+            background: linear-gradient(135deg, var(--success), #059669);
+            color: white;
+        }
+        .btn-success svg { color: white; }
+
+        /* ===== Status Text ===== */
         #status {
-            margin: 20px 0;
-            font-weight: 700;
             text-align: center;
-            font-size: 16px;
+            font-size: 14px;
+            font-weight: 500;
+            padding: 8px 0;
+            min-height: 36px;
+            color: var(--text-muted);
+            transition: color 0.3s;
         }
-        .contact {
+        #status.processing { color: var(--primary); }
+        #status.done { color: var(--success); }
+
+        /* ===== Footer ===== */
+        .footer {
             text-align: center;
-            padding: 20px;
-            background: #f8fafc;
-            color: #475569;
-            border-top: 1px solid #e2e8f0;
+            font-size: 13px;
+            color: var(--text-muted);
+            padding: 16px 20px;
+        }
+        .footer strong {
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
+        /* ===== Responsive ===== */
+        @media (max-width: 640px) {
+            body { padding: 16px 12px; }
+            .header { flex-direction: column; gap: 12px; align-items: flex-start; }
+            .controls-grid { grid-template-columns: 1fr; }
+            .file-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); max-height: 280px; }
+            .upload-zone { padding: 36px 16px; }
         }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <div class="header">
-        <h1>Image Optimizer & Background Remover</h1>
-        <p class="subtitle">by <strong>Asad Bukhari</strong> • +92 349 1590380</p>
-        <div id="globalCounter">
-            ⚡ Helped people optimize <span id="countNumber">0</span> pictures!
+<div class="app-container">
+
+    <!-- Header -->
+    <div class="header card">
+        <div class="header-left">
+            <div class="header-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
+                    <circle cx="12" cy="13" r="3"/>
+                </svg>
+            </div>
+            <div>
+                <div class="header-title">Image Optimizer</div>
+                <div class="header-subtitle">Compress, resize &amp; remove background</div>
+            </div>
+        </div>
+        <div class="header-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+            </svg>
+            <span>Optimized <span id="countNumber">0</span> images</span>
         </div>
     </div>
 
-    <div class="main-content">
-        <div class="upload-zone" id="dropZone">
-            <p><strong>🎨 Drag & drop multiple images here</strong><br>or click to select</p>
-            <input type="file" id="fileInput" accept="image/*" multiple>
+    <!-- Upload Zone -->
+    <div class="upload-zone" id="dropZone">
+        <div class="upload-icon-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
         </div>
+        <p>Drop images here or click to browse.</p>
+        <small>Supports JPG, PNG, WebP &mdash; multiple files allowed</small>
+        <input type="file" id="fileInput" accept="image/*" multiple>
+    </div>
 
-        <div id="fileList" class="file-list" style="display:none;"></div>
+    <!-- File Section (hidden until files) -->
+    <div id="fileSection" class="card">
+        <div class="file-section-header">
+            <h3>Uploaded Images</h3>
+            <span class="file-count-badge" id="fileCountBadge">0</span>
+        </div>
+        <div class="file-grid" id="fileGrid"></div>
+    </div>
 
-        <div class="controls">
-            <div>
-                <label>Target Max Size (KB)</label>
-                <input type="number" id="targetSize" value="150" min="10">
+    <!-- Controls -->
+    <div class="card">
+        <div class="controls-grid">
+            <div class="control-group">
+                <label for="targetSize">Max Size</label>
+                <div class="input-wrap">
+                    <input type="number" id="targetSize" value="25" min="1">
+                    <span class="input-suffix">KB</span>
+                </div>
             </div>
-            <div>
-                <label>Width (px)</label>
-                <input type="number" id="targetWidth" value="900" min="100">
+            <div class="control-group">
+                <label for="targetWidth">Width</label>
+                <div class="input-wrap">
+                    <input type="number" id="targetWidth" value="600" min="100">
+                    <span class="input-suffix">px</span>
+                </div>
             </div>
-            <div>
-                <label>Height (px)</label>
-                <input type="number" id="targetHeight" value="900" min="100">
+            <div class="control-group">
+                <label for="targetHeight">Height</label>
+                <div class="input-wrap">
+                    <input type="number" id="targetHeight" value="800" min="100">
+                    <span class="input-suffix">px</span>
+                </div>
             </div>
         </div>
+    </div>
 
-        <label style="display:flex; align-items:center; gap:10px; font-size:16px;">
-            <input type="checkbox" id="removeBg" checked> 
-            <span>✨ Remove Background (White)</span>
+    <!-- Toggle -->
+    <div class="card toggle-row">
+        <span class="toggle-label">Background Removal</span>
+        <label class="toggle">
+            <input type="checkbox" id="removeBg" checked>
+            <span class="toggle-track"></span>
+            <span class="toggle-text">White fill</span>
         </label>
-
-        <button id="processBtn" disabled>🚀 Process All Images</button>
-        <button id="downloadAllBtn" style="display:none; background:linear-gradient(90deg,#10b981,#34d399);">📦 Download All as ZIP</button>
-
-        <div id="status"></div>
     </div>
 
-    <div class="contact">
-        📞 <strong>Asad Bukhari</strong> — +923491590380<br>
-        Need custom AI tools or bulk processing? Message me on WhatsApp!
+    <!-- Actions -->
+    <div class="card actions">
+        <button class="btn btn-primary" id="processBtn" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+                <polyline points="23 4 23 10 17 10"/>
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+            </svg>
+            Process All Images
+        </button>
+        <button class="btn btn-success" id="downloadAllBtn" style="display:none;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Download All as ZIP
+        </button>
     </div>
+
+    <!-- Status -->
+    <div id="status">Ready to optimize</div>
+
+    <!-- Footer -->
+    <div class="footer card">
+        <strong>Asad Bukhari</strong> &middot; +923491590380 &middot; Custom AI tools available
+    </div>
+
 </div>
 
 <script>
@@ -200,7 +628,7 @@ const jszipScript = document.createElement('script');
 jszipScript.src = "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
 document.head.appendChild(jszipScript);
 
-let currentCount = 122022; // fallback
+let currentCount = 0; // fallback
 
 // Supabase Config
 const supabaseUrl = 'https://hvxzjpxjnussldgdrkma.supabase.co';
@@ -247,13 +675,16 @@ loadGlobalCount();
 let filesToProcess = [];
 let processedResults = [];
 let segmentationModel = null;
+let fileCardElements = [];
 
 const fileInput = document.getElementById('fileInput');
 const dropZone = document.getElementById('dropZone');
 const processBtn = document.getElementById('processBtn');
 const downloadAllBtn = document.getElementById('downloadAllBtn');
 const statusEl = document.getElementById('status');
-const fileListEl = document.getElementById('fileList');
+const fileSection = document.getElementById('fileSection');
+const fileGrid = document.getElementById('fileGrid');
+const fileCountBadge = document.getElementById('fileCountBadge');
 
 async function loadModel() {
     try {
@@ -268,10 +699,14 @@ dropZone.addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', handleFiles);
 
 ['dragenter', 'dragover'].forEach(ev => dropZone.addEventListener(ev, e => {
-    e.preventDefault(); dropZone.style.borderColor = '#22d3ee';
+    e.preventDefault();
+    dropZone.style.borderColor = '#0EA5E9';
+    dropZone.style.background = '#F0F9FF';
 }));
 ['dragleave', 'drop'].forEach(ev => dropZone.addEventListener(ev, e => {
-    e.preventDefault(); dropZone.style.borderColor = '#64748b';
+    e.preventDefault();
+    dropZone.style.borderColor = '#CBD5E1';
+    dropZone.style.background = '';
 }));
 
 dropZone.addEventListener('drop', e => {
@@ -281,81 +716,173 @@ dropZone.addEventListener('drop', e => {
 
 function handleFiles(e) {
     const selectedFiles = e.files || e.target.files;
+    if (!selectedFiles || !selectedFiles.length) return;
+
+    // Revoke previous blob URLs
+    fileCardElements.forEach(el => {
+        if (el.thumbnailUrl) URL.revokeObjectURL(el.thumbnailUrl);
+    });
+    fileCardElements = [];
+
     filesToProcess = Array.from(selectedFiles).filter(f => f.type.startsWith('image/'));
-    
-    fileListEl.innerHTML = '';
-    fileListEl.style.display = 'block';
+
+    fileGrid.innerHTML = '';
+    fileSection.style.display = 'block';
 
     filesToProcess.forEach(file => {
-        const div = document.createElement('div');
-        div.className = 'file-item';
-        div.innerHTML = `📷 ${file.name} <small>(${(file.size/1024).toFixed(1)} KB)</small>`;
-        fileListEl.appendChild(div);
+        const thumbnailUrl = URL.createObjectURL(file);
+
+        const card = document.createElement('div');
+        card.className = 'file-card';
+
+        const thumb = document.createElement('img');
+        thumb.className = 'file-thumb';
+        thumb.src = thumbnailUrl;
+        thumb.alt = file.name;
+
+        const info = document.createElement('div');
+        info.className = 'file-info';
+
+        const nameEl = document.createElement('div');
+        nameEl.className = 'file-name';
+        nameEl.textContent = file.name;
+
+        const sizeEl = document.createElement('div');
+        sizeEl.className = 'file-size';
+        sizeEl.textContent = `(${(file.size / 1024).toFixed(1)} KB)`;
+
+        const statusRow = document.createElement('div');
+        statusRow.className = 'file-status-row';
+
+        const statusSpan = document.createElement('span');
+        statusSpan.className = 'file-status pending';
+        statusSpan.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg> Pending';
+
+        statusRow.appendChild(statusSpan);
+        info.appendChild(nameEl);
+        info.appendChild(sizeEl);
+        info.appendChild(statusRow);
+        card.appendChild(thumb);
+        card.appendChild(info);
+        fileGrid.appendChild(card);
+
+        fileCardElements.push({
+            card,
+            statusSpan,
+            thumbnailUrl,
+            file
+        });
     });
 
+    fileCountBadge.textContent = filesToProcess.length;
     processBtn.disabled = false;
-    statusEl.innerHTML = `<strong>${filesToProcess.length} image(s) ready!</strong>`;
+    statusEl.textContent = `${filesToProcess.length} image(s) ready`;
+    statusEl.className = '';
+
+    // Reset file input so change event fires even for the same file
+    fileInput.value = '';
 }
 
 processBtn.addEventListener('click', async () => {
     if (!filesToProcess.length) return;
 
-    statusEl.innerHTML = `Processing ${filesToProcess.length} images...`;
+    processBtn.disabled = true;
     processedResults = [];
 
+    statusEl.textContent = `Processing ${filesToProcess.length} images...`;
+    statusEl.className = 'processing';
+
     for (let i = 0; i < filesToProcess.length; i++) {
-        statusEl.innerHTML = `Processing ${i+1}/${filesToProcess.length}...`;
+        const entry = fileCardElements[i];
+        if (!entry) continue;
+
+        // Mark card as processing
+        entry.card.className = 'file-card processing';
+        entry.statusSpan.className = 'file-status processing';
+        entry.statusSpan.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg> Processing';
+
+        statusEl.textContent = `Processing ${i + 1} of ${filesToProcess.length}...`;
+
         try {
             const result = await processSingleImage(filesToProcess[i]);
+
+            // Mark card as done
+            entry.card.className = 'file-card done';
+            entry.statusSpan.className = 'file-status done';
+            entry.statusSpan.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Done';
+
             processedResults.push(result);
-        } catch(err) {}
+        } catch(err) {
+            // Mark card as failed
+            entry.card.className = 'file-card failed';
+            entry.statusSpan.className = 'file-status failed';
+            entry.statusSpan.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Failed';
+        }
     }
 
     // Increment counter after successful batch
     incrementCounter(processedResults.length);
 
-    statusEl.innerHTML = `<strong style="color:#10b981;">✅ All images processed successfully!</strong>`;
-    downloadAllBtn.style.display = 'block';
+    if (processedResults.length > 0) {
+        statusEl.textContent = `All images processed successfully!`;
+        statusEl.className = 'done';
+        downloadAllBtn.style.display = 'flex';
+    } else {
+        statusEl.textContent = `No images were processed`;
+        statusEl.className = '';
+    }
+
+    processBtn.disabled = false;
 });
 
 async function processSingleImage(file) {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = async (e) => {
-            const img = new Image();
-            img.onload = async () => {
-                let processed = img;
-                if (document.getElementById('removeBg').checked && segmentationModel) {
+            try {
+                const img = new Image();
+                img.onload = async () => {
                     try {
-                        const people = await segmentationModel.segmentPeople(img);
-                        const mask = await bodySegmentation.toBinaryMask(people, {r:0,g:0,b:0,a:0}, {r:255,g:255,b:255,a:255});
+                        let processed = img;
+                        if (document.getElementById('removeBg').checked && segmentationModel) {
+                            try {
+                                const people = await segmentationModel.segmentPeople(img);
+                                const mask = await bodySegmentation.toBinaryMask(people, {r:0,g:0,b:0,a:0}, {r:255,g:255,b:255,a:255});
+                                const canvas = document.createElement('canvas');
+                                canvas.width = img.width; canvas.height = img.height;
+                                await bodySegmentation.drawMask(canvas, img, mask, 1, 2);
+                                processed = canvas;
+                            } catch(e){}
+                        }
+
+                        const targetW = parseInt(document.getElementById('targetWidth').value) || 600;
+                        const targetH = parseInt(document.getElementById('targetHeight').value) || 800;
+                        const targetKB = parseFloat(document.getElementById('targetSize').value) || 25;
+
                         const canvas = document.createElement('canvas');
-                        canvas.width = img.width; canvas.height = img.height;
-                        await bodySegmentation.drawMask(canvas, img, mask, 1, 2);
-                        processed = canvas;
-                    } catch(e){}
-                }
+                        canvas.width = targetW;
+                        canvas.height = targetH;
+                        const ctx = canvas.getContext('2d');
+                        ctx.fillStyle = "#FFFFFF";
+                        ctx.fillRect(0, 0, targetW, targetH);
+                        ctx.drawImage(processed, 0, 0, targetW, targetH);
 
-                const targetW = parseInt(document.getElementById('targetWidth').value) || 900;
-                const targetH = parseInt(document.getElementById('targetHeight').value) || 900;
-                const targetKB = parseFloat(document.getElementById('targetSize').value) || 150;
-
-                const canvas = document.createElement('canvas');
-                canvas.width = targetW;
-                canvas.height = targetH;
-                const ctx = canvas.getContext('2d');
-                ctx.fillStyle = "#FFFFFF";
-                ctx.fillRect(0, 0, targetW, targetH);
-                ctx.drawImage(processed, 0, 0, targetW, targetH);
-
-                const blob = await iterativeCompression(canvas, targetKB);
-                resolve({
-                    blob,
-                    name: file.name.replace(/\.\w+$/, '') + '_optimized.jpg'
-                });
-            };
-            img.src = e.target.result;
+                        const blob = await iterativeCompression(canvas, targetKB);
+                        resolve({
+                            blob,
+                            name: file.name.replace(/\.\w+$/, '') + '_optimized.jpg'
+                        });
+                    } catch(err) {
+                        reject(err);
+                    }
+                };
+                img.onerror = reject;
+                img.src = e.target.result;
+            } catch(err) {
+                reject(err);
+            }
         };
+        reader.onerror = reject;
         reader.readAsDataURL(file);
     });
 }
